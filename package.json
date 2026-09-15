@@ -1,0 +1,65 @@
+{
+  "name": "filenest",
+  "version": "0.1.0",
+  "description": "A modern, TypeScript-native multipart/form-data middleware for Express and Node.js — a maintained, secure successor to multer.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "multipart",
+    "form-data",
+    "upload",
+    "file-upload",
+    "express",
+    "middleware",
+    "multer"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "dependencies": {
+    "busboy": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "@types/express": "^4.17.21",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.9.0",
+    "tsup": "^8.2.4",
+    "typescript": "^5.6.2",
+    "vitest": "^5.0.1"
+  },
+  "peerDependencies": {
+    "express": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    }
+  }
+}
