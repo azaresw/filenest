@@ -37,10 +37,14 @@
     "multer"
   ],
   "license": "MIT",
-  "author": "",
+  "author": "azaresw (https://github.com/azaresw)",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/azaresw/filenest.git"
+  },
+  "homepage": "https://github.com/azaresw/filenest#readme",
+  "bugs": {
+    "url": "https://github.com/azaresw/filenest/issues"
   },
   "dependencies": {},
   "devDependencies": {

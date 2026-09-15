@@ -25,6 +25,7 @@ app.post("/avatar", upload.single("avatar"), (req, res) => {
 `multer` is stable but effectively unmaintained — infrequent releases, open security advisories, and a callback-first API from a pre-async/await era. filenest keeps the same mental model (storage engines, `.single()` / `.array()` / `.fields()` / `.any()` / `.none()`) but is:
 
 - Written in TypeScript, ships its own types
+- **Zero runtime dependencies** — the multipart parser is built directly on Node's `stream`/`buffer` built-ins, not on a third-party parser with its own transitive supply chain
 - Built on Promises internally (no callback pyramids)
 - Actively patched — dependencies checked daily, security audit run weekly (see `.github/workflows`)
 - Explicit, typed errors (`FilenestError` with a `code`) instead of stringly-typed messages
@@ -45,4 +46,4 @@ app.post("/avatar", upload.single("avatar"), (req, res) => {
 
 ## Status
 
-Early scaffold — core parsing, both storage engines, and the five middleware modes are implemented and tested. Not yet published to npm.
+Early release (v0.1.0). Core parsing, both storage engines, and the five middleware modes are implemented and tested, including chunk-boundary stress tests against the hand-rolled parser. It has not had the years of real-world traffic multer has, so treat it as early — file issues at the repo above if something breaks.
