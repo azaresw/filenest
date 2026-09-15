@@ -1,8 +1,8 @@
-import Busboy from "busboy";
 import type { IncomingHttpHeaders } from "node:http";
-
-type BusboyInstance = ReturnType<typeof Busboy>;
 import { FilenestError } from "./errors.js";
+import { parseBoundary } from "./multipart/boundary.js";
+import { MultipartParser } from "./multipart/parser.js";
+import type { FieldEventInfo, FileEventInfo, FileSink } from "./multipart/parser.js";
 import type { FieldSpec, FilenestFile, FilenestOptions } from "./types.js";
 
 export type FieldAcceptance = "any" | Map<string, { maxCount: number }>;
@@ -19,32 +19,33 @@ export function parseMultipart(
   accept: FieldAcceptance
 ): Promise<ParseResult> {
   return new Promise((resolve, reject) => {
-    let busboy: BusboyInstance;
-    try {
-      busboy = Busboy({ headers: headers as Record<string, string>, limits: options.limits });
-    } catch (err) {
-      reject(err instanceof Error ? err : new Error(String(err)));
+    const contentType = headers["content-type"];
+    const boundary = typeof contentType === "string" ? parseBoundary(contentType) : null;
+    if (!boundary) {
+      reject(new Error("Missing multipart boundary in Content-Type header."));
       return;
     }
+
+    const parser = new MultipartParser(boundary, options.limits);
 
     const storage = options.storage;
     const fields: Record<string, string | string[]> = {};
     const files: FilenestFile[] = [];
     const fileCountByField = new Map<string, number>();
     const pendingFiles: Promise<void>[] = [];
+    const activeHandles: { abort(): Promise<void> }[] = [];
 
     let settled = false;
-    const activeHandles: { abort(): Promise<void> }[] = [];
 
     function fail(err: Error) {
       if (settled) return;
       settled = true;
-      busboy!.removeAllListeners();
-      body.unpipe(busboy as unknown as NodeJS.WritableStream);
+      parser.removeAllListeners();
+      (body as NodeJS.ReadableStream).unpipe(parser as unknown as NodeJS.WritableStream);
       Promise.allSettled(activeHandles.map((h) => h.abort())).finally(() => reject(err));
     }
 
-    busboy.on("field", (name, value, info) => {
+    parser.on("field", (name: string, value: string, info: FieldEventInfo) => {
       if (info.nameTruncated) return fail(new FilenestError("LIMIT_FIELD_KEY", name));
       if (info.valueTruncated) return fail(new FilenestError("LIMIT_FIELD_VALUE", name));
 
@@ -58,7 +59,7 @@ export function parseMultipart(
       }
     });
 
-    busboy.on("file", (fieldName, stream, info) => {
+    parser.on("file", (fieldName: string, stream: FileSink, info: FileEventInfo) => {
       const { filename: originalName, encoding, mimeType } = info;
 
       const allowed =
@@ -104,15 +105,19 @@ export function parseMultipart(
         files.push({ fieldName, originalName, encoding, mimeType, ...result });
       })();
 
+      // Swallow here so Node doesn't flag a transient "unhandled rejection" in the
+      // window before the "close" handler below awaits pendingFiles via Promise.all —
+      // the real rejection still propagates through that Promise.all to fail().
+      task.catch(() => {});
       pendingFiles.push(task);
     });
 
-    busboy.on("filesLimit", () => fail(new FilenestError("LIMIT_FILE_COUNT")));
-    busboy.on("fieldsLimit", () => fail(new FilenestError("LIMIT_FIELD_COUNT")));
-    busboy.on("partsLimit", () => fail(new FilenestError("LIMIT_PART_COUNT")));
-    busboy.on("error", (err) => fail(err instanceof Error ? err : new Error(String(err))));
+    parser.on("filesLimit", () => fail(new FilenestError("LIMIT_FILE_COUNT")));
+    parser.on("fieldsLimit", () => fail(new FilenestError("LIMIT_FIELD_COUNT")));
+    parser.on("partsLimit", () => fail(new FilenestError("LIMIT_PART_COUNT")));
+    parser.on("error", (err: unknown) => fail(err instanceof Error ? err : new Error(String(err))));
 
-    busboy.on("close", () => {
+    parser.on("close", () => {
       if (settled) return;
       Promise.all(pendingFiles)
         .then(() => {
@@ -123,7 +128,7 @@ export function parseMultipart(
         .catch(fail);
     });
 
-    body.pipe(busboy);
+    body.pipe(parser);
   });
 }
 
